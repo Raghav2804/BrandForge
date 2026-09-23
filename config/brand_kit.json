@@ -1,0 +1,52 @@
+{
+    "brand_name": "EcoFlow",
+
+    "brand_voice": {
+        "tone": [
+            "friendly",
+            "modern",
+            "positive"
+        ],
+        "style": "simple and engaging"
+    },
+
+    "colors": {
+        "primary": "#1B5E20",
+        "secondary": "#81C784",
+        "background": "#F5F5F5"
+    },
+
+    "visual_style": [
+        "clean",
+        "minimal",
+        "natural"
+    ],
+
+    "do_say": [
+        "sustainable",
+        "eco-friendly",
+        "reusable"
+    ],
+
+    "dont_say": [
+        "cheap",
+        "guaranteed",
+        "best in the world"
+    ],
+
+    "channel_rules": {
+        "instagram": {
+            "max_characters": 2200,
+            "max_hashtags": 10
+        },
+
+        "linkedin": {
+            "max_characters": 3000,
+            "max_hashtags": 5
+        },
+
+        "email": {
+            "max_characters": 5000
+        }
+    }
+}
