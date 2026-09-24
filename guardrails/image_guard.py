@@ -5,21 +5,27 @@ import re
 class ImageGuard:
 
     def __init__(self, brand):
+
         self.brand = brand
 
+        colors = brand.get("colors", {})
+
         self.brand_colors = [
-            brand["colors"]["primary"],
-            brand["colors"]["secondary"],
-            brand["colors"]["background"]
+            colors.get("primary"),
+            colors.get("secondary"),
+            colors.get("background")
         ]
 
-        # Neutral colors are normally safe in designs
+        self.brand_colors = [
+            color for color in self.brand_colors
+            if color
+        ]
+
         self.allowed_neutrals = [
             "#FFFFFF",
             "#000000"
         ]
 
-        # Maximum RGB distance allowed
         self.tolerance = 60
 
     def hex_to_rgb(self, color):
@@ -49,7 +55,8 @@ class ImageGuard:
 
         # Allow neutral colors
         if color in [
-            c.upper() for c in self.allowed_neutrals
+            c.upper()
+            for c in self.allowed_neutrals
         ]:
             return True
 
@@ -79,7 +86,9 @@ class ImageGuard:
 
             return {
                 "status": "FAIL",
-                "issues": ["Image file path is missing."]
+                "issues": [
+                    "Image file path is missing."
+                ]
             }
 
         if not os.path.exists(file_path):
@@ -106,7 +115,7 @@ class ImageGuard:
                 content = file.read()
 
             colors = re.findall(
-                r'#[0-9A-Fa-f]{6}',
+                r"#[0-9A-Fa-f]{6}",
                 content
             )
 

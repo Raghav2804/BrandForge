@@ -5,42 +5,139 @@ class ImageGenerationAgent:
 
     def __init__(self):
         self.output_folder = "outputs/images"
-
         os.makedirs(self.output_folder, exist_ok=True)
 
     def generate_images(self, campaign, brand):
 
         print("\nGenerating campaign images...")
 
-        results = []
-
-        # Variant 1
-        image1 = self.create_visual(
-            campaign,
-            brand,
-            "minimal"
-        )
-
-        results.append(image1)
-
-        # Variant 2
-        image2 = self.create_visual(
-            campaign,
-            brand,
-            "campus"
-        )
-
-        results.append(image2)
-
-        return results
+        return [
+            self.create_visual(campaign, brand, "minimal"),
+            self.create_visual(campaign, brand, "campus")
+        ]
 
     def create_visual(self, campaign, brand, style):
 
-        brand_name = brand["brand_name"]
+        brand_name = brand.get("brand_name", "Brand")
+        product = campaign.product.strip()
+        product_lower = product.lower()
 
-        primary = brand["colors"]["primary"]
-        secondary = brand["colors"]["secondary"]
-        background = brand["colors"]["background"]
+        colors = brand.get("colors", {})
+
+        primary = colors.get("primary", "#1B5E20")
+        secondary = colors.get("secondary", "#81C784")
+        background = colors.get("background", "#F5F5F5")
+
+        if "lamp" in product_lower or "light" in product_lower:
+
+            product_shape = f"""
+            <rect x="475" y="360" width="130" height="300"
+                  rx="35" fill="{primary}"/>
+            <path d="M540 360 L380 220 L700 220 Z"
+                  fill="{primary}"/>
+            <path d="M420 225 L660 225 L540 80 Z"
+                  fill="{secondary}" opacity="0.8"/>
+            <rect x="350" y="650" width="380" height="35"
+                  rx="15" fill="{primary}"/>
+            <circle cx="540" cy="675" r="18" fill="white"/>
+            """
+
+        elif (
+            "shoe" in product_lower
+            or "sneaker" in product_lower
+            or "footwear" in product_lower
+        ):
+
+            product_shape = f"""
+            <path d="
+                M300 600
+                C400 590 470 500 520 400
+                L650 470
+                C700 500 760 560 850 610
+                L850 680
+                L300 680 Z"
+                fill="{primary}"/>
+
+            <path d="
+                M320 640
+                L850 640
+                L850 700
+                L300 700
+                Q280 670 320 640 Z"
+                fill="{secondary}"/>
+
+            <line x1="520" y1="470" x2="650" y2="530"
+                  stroke="white" stroke-width="12"/>
+
+            <line x1="500" y1="510" x2="630" y2="570"
+                  stroke="white" stroke-width="12"/>
+            """
+
+        elif (
+            "laptop" in product_lower
+            or "computer" in product_lower
+        ):
+
+            product_shape = f"""
+            <rect x="300" y="300" width="480" height="300"
+                  rx="20" fill="{primary}"/>
+
+            <rect x="330" y="330" width="420" height="240"
+                  rx="10" fill="white"/>
+
+            <path d="
+                M230 650
+                L850 650
+                L790 710
+                L290 710 Z"
+                fill="{secondary}"/>
+
+            <circle cx="540" cy="680" r="12"
+                    fill="{primary}"/>
+            """
+
+        elif (
+            "phone" in product_lower
+            or "mobile" in product_lower
+        ):
+
+            product_shape = f"""
+            <rect x="390" y="180" width="300" height="620"
+                  rx="45" fill="{primary}"/>
+
+            <rect x="420" y="230" width="240" height="500"
+                  rx="20" fill="white"/>
+
+            <circle cx="540" cy="765" r="15"
+                    fill="{secondary}"/>
+            """
+
+        else:
+
+            product_shape = f"""
+            <rect x="360" y="300" width="360" height="400"
+                  rx="60" fill="{primary}"/>
+
+            <circle cx="540" cy="470" r="100"
+                    fill="{secondary}"/>
+
+            <rect x="440" y="620" width="200" height="35"
+                  rx="15" fill="white"/>
+            """
+
+        product_text = (
+            product
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+        brand_text = (
+            brand_name
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
 
         if style == "minimal":
 
@@ -51,50 +148,31 @@ class ImageGenerationAgent:
 
             svg = f"""
 <svg width="1080" height="1080"
+     viewBox="0 0 1080 1080"
      xmlns="http://www.w3.org/2000/svg">
 
-    <rect width="1080" height="1080"
-          fill="{background}"/>
+    <rect width="1080" height="1080" fill="{background}"/>
 
-    <circle cx="850" cy="180"
-            r="120"
+    <circle cx="870" cy="180" r="130"
             fill="{secondary}"/>
 
-    <rect x="390" y="220"
-          width="300"
-          height="600"
-          rx="80"
-          fill="{primary}"/>
+    {product_shape}
 
-    <rect x="430" y="300"
-          width="220"
-          height="400"
-          rx="50"
-          fill="white"/>
-
-    <rect x="450" y="150"
-          width="180"
-          height="100"
-          rx="30"
-          fill="{primary}"/>
-
-    <text x="540"
-          y="900"
+    <text x="540" y="850"
           text-anchor="middle"
           font-family="Arial"
-          font-size="52"
+          font-size="40"
           font-weight="bold"
           fill="{primary}">
-        {brand_name}
+        {product_text}
     </text>
 
-    <text x="540"
-          y="960"
+    <text x="540" y="910"
           text-anchor="middle"
           font-family="Arial"
-          font-size="30"
+          font-size="28"
           fill="{primary}">
-        Sustainable hydration
+        {brand_text}
     </text>
 
 </svg>
@@ -109,71 +187,48 @@ class ImageGenerationAgent:
 
             svg = f"""
 <svg width="1080" height="1080"
+     viewBox="0 0 1080 1080"
      xmlns="http://www.w3.org/2000/svg">
 
-    <rect width="1080"
-          height="1080"
+    <rect width="1080" height="1080"
           fill="{background}"/>
 
-    <rect y="720"
-          width="1080"
-          height="360"
+    <rect y="760" width="1080" height="320"
           fill="{secondary}"/>
 
-    <circle cx="160"
-            cy="180"
-            r="90"
+    <circle cx="150" cy="180" r="90"
             fill="{secondary}"/>
 
-    <circle cx="900"
-            cy="220"
-            r="130"
+    <circle cx="920" cy="230" r="120"
             fill="{secondary}"/>
 
-    <rect x="390"
-          y="260"
-          width="300"
-          height="560"
-          rx="75"
-          fill="{primary}"/>
+    {product_shape}
 
-    <rect x="430"
-          y="340"
-          width="220"
-          height="380"
-          rx="45"
-          fill="white"/>
-
-    <rect x="450"
-          y="190"
-          width="180"
-          height="100"
-          rx="30"
-          fill="{primary}"/>
-
-    <text x="540"
-          y="900"
+    <text x="540" y="870"
           text-anchor="middle"
           font-family="Arial"
-          font-size="52"
+          font-size="40"
           font-weight="bold"
           fill="{primary}">
-        {brand_name}
+        {product_text}
     </text>
 
-    <text x="540"
-          y="960"
+    <text x="540" y="930"
           text-anchor="middle"
           font-family="Arial"
-          font-size="30"
+          font-size="28"
           fill="{primary}">
-        Campus • Sustainable • Reusable
+        {brand_text}
     </text>
 
 </svg>
 """
 
-        with open(filename, "w", encoding="utf-8") as file:
+        with open(
+            filename,
+            "w",
+            encoding="utf-8"
+        ) as file:
             file.write(svg)
 
         print(f"Created: {filename}")
@@ -182,5 +237,5 @@ class ImageGenerationAgent:
             "style": style,
             "file": filename,
             "status": "fallback_generated",
-            "message": "Image API unavailable, local branded fallback used."
+            "message": "Product-aware local visual generated."
         }

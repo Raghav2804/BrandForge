@@ -13,7 +13,7 @@ class TextGuard:
         # Check forbidden words
         # -----------------------------
 
-        for word in self.brand["dont_say"]:
+        for word in self.brand.get("dont_say", []):
 
             if word.lower() in text_lower:
 
@@ -22,7 +22,7 @@ class TextGuard:
                 )
 
         # -----------------------------
-        # Check channel character limit
+        # Check character limit
         # -----------------------------
 
         channel_rules = self.brand.get(
@@ -39,13 +39,30 @@ class TextGuard:
             "max_characters"
         )
 
-        if max_characters:
+        if max_characters and len(text) > max_characters:
 
-            if len(text) > max_characters:
+            issues.append(
+                f"{channel} content exceeds "
+                f"{max_characters} characters"
+            )
+
+        # -----------------------------
+        # Check hashtag limit
+        # -----------------------------
+
+        max_hashtags = rules.get(
+            "max_hashtags"
+        )
+
+        if max_hashtags:
+
+            hashtag_count = text.count("#")
+
+            if hashtag_count > max_hashtags:
 
                 issues.append(
                     f"{channel} content exceeds "
-                    f"{max_characters} characters"
+                    f"{max_hashtags} hashtags"
                 )
 
         # -----------------------------

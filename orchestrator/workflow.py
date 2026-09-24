@@ -69,6 +69,7 @@ class BrandForgeWorkflow:
 
         qa_report = self.qa_engine.check_campaign(
             copy,
+            campaign,
             images
         )
 
@@ -95,7 +96,6 @@ class BrandForgeWorkflow:
                 f"{retry_count}/{self.max_retries}..."
             )
 
-            # Revise copy based on QA issues
             copy = self.copy_agent.revise_copy(
                 campaign,
                 self.brand,
@@ -106,9 +106,10 @@ class BrandForgeWorkflow:
 
             print("Copy revised.")
 
-            # Run complete QA again
+            # Run QA again
             qa_report = self.qa_engine.check_campaign(
                 copy,
+                campaign,
                 images
             )
 

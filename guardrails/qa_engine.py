@@ -7,11 +7,12 @@ class QAEngine:
 
     def __init__(self, brand):
 
+        self.brand = brand
         self.text_guard = TextGuard(brand)
         self.consistency_guard = ConsistencyGuard()
         self.image_guard = ImageGuard(brand)
 
-    def check_campaign(self, copy, images=None):
+    def check_campaign(self, copy, campaign=None, images=None):
 
         results = {}
 
@@ -69,7 +70,11 @@ class QAEngine:
         # -----------------------------
 
         results["consistency"] = (
-            self.consistency_guard.check(copy)
+            self.consistency_guard.check(
+                copy,
+                campaign,
+                self.brand
+            )
         )
 
         # -----------------------------
@@ -87,7 +92,10 @@ class QAEngine:
                 )
 
                 results["images"].append({
-                    "style": image.get("style", "unknown"),
+                    "style": image.get(
+                        "style",
+                        "unknown"
+                    ),
                     **image_result
                 })
 

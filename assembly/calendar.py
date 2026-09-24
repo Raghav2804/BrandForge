@@ -20,7 +20,7 @@ class CampaignCalendar:
                     "%Y-%m-%d"
                 ),
                 "channel": channel,
-                "content": "Campaign content",
+                "content": f"Campaign content for {channel}",
                 "status": "Scheduled"
             })
 

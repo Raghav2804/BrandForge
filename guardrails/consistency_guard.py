@@ -3,37 +3,39 @@ import re
 
 class ConsistencyGuard:
 
-    def check(self, copy):
+    def check(self, copy, campaign=None, brand=None):
 
         issues = []
 
-        instagram = copy["instagram"]
-        linkedin = copy["linkedin"]
-        email = copy["email"]
+        instagram = copy.get("instagram", {})
+        linkedin = copy.get("linkedin", {})
+        email = copy.get("email", {})
 
         # --------------------------------
-        # Combine all campaign text
+        # Combine campaign text
         # --------------------------------
 
         texts = {
             "Instagram": (
-                instagram["caption"]
+                instagram.get("caption", "")
                 + " "
-                + instagram["cta"]
+                + instagram.get("cta", "")
             ),
+
             "LinkedIn": (
-                linkedin["post"]
+                linkedin.get("post", "")
                 + " "
-                + linkedin["cta"]
+                + linkedin.get("cta", "")
             ),
+
             "Email": (
-                email["subject"]
+                email.get("subject", "")
                 + " "
-                + email["preview"]
+                + email.get("preview", "")
                 + " "
-                + email["body"]
+                + email.get("body", "")
                 + " "
-                + email["cta"]
+                + email.get("cta", "")
             )
         }
 
@@ -42,26 +44,53 @@ class ConsistencyGuard:
         ).lower()
 
         # --------------------------------
-        # Brand name check
+        # Dynamic brand check
         # --------------------------------
 
-        if "ecoflow" not in all_text:
+        if campaign:
 
-            issues.append(
-                "Brand name EcoFlow is missing "
-                "from campaign content."
-            )
+            product = str(
+                campaign.product
+            ).strip()
+
+            if product:
+                product_words = [
+                    word.lower()
+                    for word in product.split()
+                    if len(word) > 2
+                ]
+
+                product_found = any(
+                    word in all_text
+                    for word in product_words
+                )
+
+                if not product_found:
+
+                    issues.append(
+                        f"Product name '{product}' "
+                        "is missing from campaign content."
+                    )
 
         # --------------------------------
-        # Main message check
+        # Dynamic brand check
         # --------------------------------
 
-        if "sustainable" not in all_text:
+        if brand:
 
-            issues.append(
-                "Main sustainability message "
-                "is missing."
-            )
+            brand_name = brand.get(
+                "brand_name",
+                ""
+            ).strip()
+
+            if brand_name:
+
+                if brand_name.lower() not in all_text:
+
+                    issues.append(
+                        f"Brand name '{brand_name}' "
+                        "is missing from campaign content."
+                    )
 
         # --------------------------------
         # Extract numeric claims
@@ -72,17 +101,17 @@ class ConsistencyGuard:
         for channel, text in texts.items():
 
             percentages = re.findall(
-                r'\b\d+(?:\.\d+)?\s*%',
+                r"\b\d+(?:\.\d+)?\s*%",
                 text
             )
 
             prices = re.findall(
-                r'(?:₹|\$|€)\s*\d+(?:\.\d+)?',
+                r"(?:₹|\$|€)\s*\d+(?:\.\d+)?",
                 text
             )
 
             durations = re.findall(
-                r'\b\d+\s*(?:day|days|week|weeks|month|months)\b',
+                r"\b\d+\s*(?:day|days|week|weeks|month|months)\b",
                 text.lower()
             )
 
@@ -93,7 +122,7 @@ class ConsistencyGuard:
             }
 
         # --------------------------------
-        # Check percentage consistency
+        # Percentage consistency
         # --------------------------------
 
         percentage_values = []
@@ -103,7 +132,7 @@ class ConsistencyGuard:
             for value in claims[channel]["percentages"]:
 
                 number = re.search(
-                    r'\d+(?:\.\d+)?',
+                    r"\d+(?:\.\d+)?",
                     value
                 )
 
@@ -123,7 +152,7 @@ class ConsistencyGuard:
                 )
 
         # --------------------------------
-        # Check price consistency
+        # Price consistency
         # --------------------------------
 
         price_values = []
@@ -133,7 +162,7 @@ class ConsistencyGuard:
             for value in claims[channel]["prices"]:
 
                 number = re.search(
-                    r'\d+(?:\.\d+)?',
+                    r"\d+(?:\.\d+)?",
                     value
                 )
 
@@ -153,7 +182,7 @@ class ConsistencyGuard:
                 )
 
         # --------------------------------
-        # Check duration consistency
+        # Duration consistency
         # --------------------------------
 
         duration_values = []

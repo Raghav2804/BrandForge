@@ -18,10 +18,12 @@ class CampaignExporter:
 
         folder = "outputs/BrandForge_Campaign"
 
-        os.makedirs(
-            folder,
-            exist_ok=True
-        )
+        # --------------------------------
+        # Clean old campaign package
+        # --------------------------------
+
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
 
         os.makedirs(
             f"{folder}/content",
@@ -59,21 +61,14 @@ class CampaignExporter:
             encoding="utf-8"
         ) as file:
 
-            file.write(
-                copy["instagram"]["caption"]
-            )
+            file.write(copy["instagram"]["caption"])
 
             file.write(
                 "\n\nCTA: "
+                + copy["instagram"]["cta"]
             )
 
-            file.write(
-                copy["instagram"]["cta"]
-            )
-
-            file.write(
-                "\n\n"
-            )
+            file.write("\n\n")
 
             file.write(
                 " ".join(
@@ -91,21 +86,14 @@ class CampaignExporter:
             encoding="utf-8"
         ) as file:
 
-            file.write(
-                copy["linkedin"]["post"]
-            )
+            file.write(copy["linkedin"]["post"])
 
             file.write(
                 "\n\nCTA: "
+                + copy["linkedin"]["cta"]
             )
 
-            file.write(
-                copy["linkedin"]["cta"]
-            )
-
-            file.write(
-                "\n\n"
-            )
+            file.write("\n\n")
 
             file.write(
                 " ".join(
@@ -124,22 +112,17 @@ class CampaignExporter:
         ) as file:
 
             file.write(
-                f"Subject: "
-                f"{copy['email']['subject']}\n\n"
+                f"Subject: {copy['email']['subject']}\n\n"
             )
 
             file.write(
-                f"Preview: "
-                f"{copy['email']['preview']}\n\n"
+                f"Preview: {copy['email']['preview']}\n\n"
             )
 
-            file.write(
-                copy["email"]["body"]
-            )
+            file.write(copy["email"]["body"])
 
             file.write(
-                f"\n\nCTA: "
-                f"{copy['email']['cta']}"
+                f"\n\nCTA: {copy['email']['cta']}"
             )
 
         # --------------------------------
@@ -148,14 +131,18 @@ class CampaignExporter:
 
         for image in images:
 
-            source = image["file"]
+            source = image.get("file")
 
-            destination = (
-                f"{folder}/images/"
-                + os.path.basename(source)
-            )
+            if not source:
+                continue
 
             if os.path.exists(source):
+
+                destination = os.path.join(
+                    folder,
+                    "images",
+                    os.path.basename(source)
+                )
 
                 shutil.copy2(
                     source,
@@ -226,13 +213,26 @@ class CampaignExporter:
             )
 
         # --------------------------------
-        # ZIP Package
+        # Remove old ZIP
+        # --------------------------------
+
+        zip_base = "outputs/BrandForge_Campaign"
+
+        old_zip = zip_base + ".zip"
+
+        if os.path.exists(old_zip):
+            os.remove(old_zip)
+
+        # --------------------------------
+        # Create fresh ZIP
         # --------------------------------
 
         zip_file = shutil.make_archive(
-            "outputs/BrandForge_Campaign",
+            zip_base,
             "zip",
             folder
         )
+
+        print(f"\nPackage created: {zip_file}")
 
         return zip_file

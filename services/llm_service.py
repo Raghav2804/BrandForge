@@ -1,12 +1,10 @@
 import os
-import time
 from pathlib import Path
 
 from dotenv import load_dotenv
 from google import genai
 
 
-# Find .env in BrandForge root folder
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = BASE_DIR / ".env"
 
@@ -22,39 +20,56 @@ class LLMService:
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found")
 
-        self.client = genai.Client(api_key=api_key)
+        self.client = genai.Client(
+            api_key=api_key
+        )
 
         self.models = [
-    "gemini-3.5-flash-lite",
-    "gemini-3.6-flash",
-    "gemini-3.7-flash",
-    "gemini-flash-lite-latest"
-]
+            "gemini-flash-lite-latest",
+            "gemini-3.6-flash",
+            "gemini-3.7-flash",
+            "gemini-3.5-flash-lite"
+        ]
 
     def generate(self, prompt):
 
+        last_error = None
+
         for model in self.models:
 
-            for attempt in range(2):
+            print(f"\nTrying model: {model}")
 
-                try:
+            try:
 
-                    print(f"Trying model: {model}")
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt
+                )
 
-                    response = self.client.models.generate_content(
-                        model=model,
-                        contents=prompt
-                    )
-
+                if response.text:
+                    print(f"Success: {model}")
                     return response.text
 
-                except Exception as e:
+                print(f"{model} returned empty response.")
 
-                    print(f"{model} failed: {e}")
+            except Exception as e:
 
-                    if attempt == 0:
-                        time.sleep(2)
-                    else:
-                        time.sleep(1)
+                last_error = e
+                error_text = str(e)
 
-        raise RuntimeError("All Gemini models failed.")
+                print(
+                    f"{model} failed: {error_text}"
+                )
+
+                if "503" in error_text or "429" in error_text:
+                    print(
+                        "Temporary Gemini issue. "
+                        "Trying next model..."
+                    )
+
+                continue
+
+        raise RuntimeError(
+            "All Gemini models failed. "
+            f"Last error: {last_error}"
+        )

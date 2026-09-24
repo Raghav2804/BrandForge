@@ -1,853 +1,1126 @@
-import json
-import os
-import base64
 import streamlit as st
+import json
+import base64
+from pathlib import Path
+import streamlit.components.v1 as components
 
 from models.campaign import Campaign
 from orchestrator.workflow import BrandForgeWorkflow
-from assembly.exporter import CampaignExporter
-from assembly.calendar import CampaignCalendar
 
+
+# ============================================================
+# PAGE CONFIG
+# ============================================================
 
 st.set_page_config(
     page_title="BrandForge",
     page_icon="🚀",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-st.title("🚀 BrandForge")
-st.subheader("Create. Validate. Launch.")
+BASE_DIR = Path(__file__).resolve().parent
+BRAND_FILE = BASE_DIR / "config" / "brand_kit.json"
 
-st.write(
-    "AI-powered multi-agent marketing agency that "
-    "turns one campaign brief into a complete "
-    "multi-channel marketing package."
+
+# ============================================================
+# SIMPLE CSS
+# ============================================================
+
+st.markdown("""
+<style>
+.block-container {
+    max-width: 1400px;
+    padding-top: 2rem;
+    padding-bottom: 4rem;
+}
+
+.brand-title {
+    font-size: 2.7rem;
+    font-weight: 800;
+    color: #173b2a;
+    margin-bottom: 0;
+}
+
+.brand-sub {
+    color: #718078;
+    margin-top: -5px;
+}
+
+.hero {
+    background: linear-gradient(135deg,#173b2a,#285b40);
+    padding: 30px;
+    border-radius: 20px;
+    color: white;
+    margin: 20px 0;
+}
+
+.hero-small {
+    color:#b8dfc4;
+    font-size:.75rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:1px;
+}
+
+.hero-title {
+    font-size:2rem;
+    font-weight:800;
+    margin:8px 0;
+}
+
+.hero-sub {
+    color:#dcebe0;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def load_brand():
+
+    with open(
+        BRAND_FILE,
+        "r",
+        encoding="utf-8"
+    ) as f:
+
+        return json.load(f)
+
+
+def resolve_image_path(value):
+
+    if not value:
+        return None
+
+    path = Path(str(value))
+
+    if path.exists():
+        return path
+
+    if not path.is_absolute():
+
+        candidate = BASE_DIR / path
+
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def show_svg(path):
+
+    try:
+
+        data = base64.b64encode(
+            path.read_bytes()
+        ).decode("utf-8")
+
+        html = f"""
+        <div style="
+            background:white;
+            border-radius:14px;
+            overflow:hidden;
+            border:1px solid #e4eae5;
+        ">
+            <img
+                src="data:image/svg+xml;base64,{data}"
+                style="width:100%;display:block;"
+            >
+        </div>
+        """
+
+        components.html(
+            html,
+            height=500,
+            scrolling=False
+        )
+
+        return True
+
+    except Exception:
+
+        return False
+
+
+def show_issues(result):
+
+    issues = result.get("issues", [])
+
+    if not issues:
+
+        st.caption("No issues detected.")
+        return
+
+    for issue in issues:
+        st.warning(issue)
+
+
+# ============================================================
+# LOAD BRAND
+# ============================================================
+
+brand = load_brand()
+
+
+# ============================================================
+# HEADER
+# ============================================================
+
+st.markdown(
+    "<div class='brand-title'>BrandForge</div>",
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    "<div class='brand-sub'>Create. Validate. Launch.</div>",
+    unsafe_allow_html=True
 )
 
 st.divider()
 
 
-# ==========================================
-# LOAD BRAND CONFIG
-# ==========================================
-
-with open(
-    "config/brand_kit.json",
-    "r",
-    encoding="utf-8"
-) as file:
-
-    brand = json.load(file)
-
-
-# ==========================================
+# ============================================================
 # CAMPAIGN BRIEF
-# ==========================================
+# ============================================================
 
-st.header("📋 Campaign Brief")
+st.subheader("Campaign Brief")
 
-product = st.text_input(
-    "Product",
-    value="Eco-friendly Water Bottle"
+st.caption(
+    "Give BrandForge one brief and let the agents build the campaign."
 )
 
-audience = st.text_input(
-    "Target Audience",
-    value="College Students"
-)
-
-goal = st.text_input(
-    "Campaign Goal",
-    value="Increase product awareness"
-)
-
-key_message = st.text_area(
-    "Key Message",
-    value="Sustainable hydration for everyday life"
-)
-
-channels = st.multiselect(
-    "Marketing Channels",
-    ["Instagram", "LinkedIn", "Email"],
-    default=[
-        "Instagram",
-        "LinkedIn",
-        "Email"
-    ]
-)
+col1, col2 = st.columns(2)
 
 
-# ==========================================
-# BUTTONS
-# ==========================================
+with col1:
 
-generate_button = st.button(
-    "🚀 Generate Campaign",
-    use_container_width=True
-)
+    product = st.text_input(
+        "Product / Service",
+        value="SmartGlow Smart LED Desk Lamp",
+        placeholder="e.g. Productivity App"
+    )
 
-test_button = st.button(
-    "🧪 Test Brand Guardrails",
-    use_container_width=True
-)
+    audience = st.text_input(
+        "Target Audience",
+        value="College students and young professionals",
+        placeholder="e.g. Young Professionals"
+    )
+
+    goal = st.text_input(
+        "Campaign Goal",
+        value="Increase product awareness and online sales",
+        placeholder="e.g. Product Launch"
+    )
 
 
-# ==========================================
+with col2:
+
+    key_message = st.text_area(
+        "Key Message",
+        value="Light smarter. Focus better.",
+        height=120,
+        placeholder="What should the audience remember?"
+    )
+
+    channels = st.multiselect(
+        "Marketing Channels",
+        ["instagram", "linkedin", "email"],
+        default=["instagram", "linkedin", "email"]
+    )
+
+
+run_col, test_col = st.columns([3, 1])
+
+
+with run_col:
+
+    generate_campaign = st.button(
+        "🚀 Generate Campaign",
+        type="primary",
+        use_container_width=True
+    )
+
+
+with test_col:
+
+    test_guardrails = st.button(
+        "🛡 Test Guardrails",
+        use_container_width=True
+    )
+
+
+# ============================================================
 # GUARDRAIL TEST
-# ==========================================
+# ============================================================
 
-if test_button:
-
-    st.header("🧪 Guardrail Test")
-
-    st.info(
-        "BrandForge will intentionally create invalid "
-        "content, detect the violation, revise it, "
-        "and run QA again."
-    )
-
-    test_word = brand["dont_say"][0]
-
-    st.write(
-        f"Testing forbidden word: **{test_word}**"
-    )
-
-    # ------------------------------------------
-    # Intentionally invalid copy
-    # ------------------------------------------
-
-    test_copy = {
-        "instagram": {
-            "caption": (
-                f"This is a {test_word} product."
-            ),
-            "cta": "Buy now",
-            "hashtags": []
-        },
-
-        "linkedin": {
-            "post": (
-                f"Our product is {test_word}."
-            ),
-            "cta": "Learn more",
-            "hashtags": []
-        },
-
-        "email": {
-            "subject": "Product Offer",
-            "preview": "Special product message",
-            "body": (
-                f"This product is {test_word}."
-            ),
-            "cta": "Shop now"
-        }
-    }
-
-    test_campaign = Campaign(
-        product="Eco-friendly Water Bottle",
-        audience="College Students",
-        goal="Increase product awareness",
-        key_message="Sustainable hydration",
-        channels=[
-            "Instagram",
-            "LinkedIn",
-            "Email"
-        ]
-    )
-
-    workflow = BrandForgeWorkflow(brand)
-
-    # ------------------------------------------
-    # Initial QA
-    # ------------------------------------------
-
-    st.subheader("1️⃣ Initial QA")
-
-    initial_qa = workflow.qa_engine.check_campaign(
-        test_copy,
-        []
-    )
-
-    if initial_qa["overall_status"] == "FAIL":
-
-        st.error(
-            "❌ Guardrail detected a violation."
-        )
-
-        for channel, result in initial_qa["checks"].items():
-
-            if isinstance(result, list):
-                continue
-
-            if result["status"] == "FAIL":
-
-                st.write(
-                    f"**{channel.title()}**"
-                )
-
-                for issue in result["issues"]:
-
-                    st.write(
-                        f"⚠️ {issue}"
-                    )
-
-    else:
-
-        st.error(
-            "❌ Guardrail test failed."
-        )
-
-    # ------------------------------------------
-    # Automatic Revision
-    # ------------------------------------------
-
-    st.subheader(
-        "2️⃣ Automatic Revision"
-    )
-
-    if initial_qa["overall_status"] == "FAIL":
-
-        with st.spinner(
-            "🤖 Revising invalid content..."
-        ):
-
-            revised_copy = workflow.copy_agent.revise_copy(
-                test_campaign,
-                brand,
-                {},
-                test_copy,
-                initial_qa
-            )
-
-        st.success(
-            "✅ Revision generated."
-        )
-
-        # ------------------------------------------
-        # Recheck
-        # ------------------------------------------
-
-        st.subheader(
-            "3️⃣ Recheck"
-        )
-
-        final_qa = workflow.qa_engine.check_campaign(
-            revised_copy,
-            []
-        )
-
-        if final_qa["overall_status"] == "PASS":
-
-            st.success(
-                "✅ PASS — violation fixed successfully."
-            )
-
-        else:
-
-            st.error(
-                "❌ FAIL — content still requires review."
-            )
-
-        with st.expander(
-            "🔍 View Test QA Report"
-        ):
-
-            st.json(
-                final_qa
-            )
-
-
-# ==========================================
-# GENERATE CAMPAIGN
-# ==========================================
-
-if generate_button:
-
-    # ----------------------------------------
-    # Input validation
-    # ----------------------------------------
-
-    if not product.strip():
-
-        st.warning(
-            "Please enter a product."
-        )
-
-        st.stop()
-
-    if not audience.strip():
-
-        st.warning(
-            "Please enter a target audience."
-        )
-
-        st.stop()
-
-    if not goal.strip():
-
-        st.warning(
-            "Please enter a campaign goal."
-        )
-
-        st.stop()
-
-    if not key_message.strip():
-
-        st.warning(
-            "Please enter a key message."
-        )
-
-        st.stop()
+if test_guardrails:
 
     if not channels:
 
         st.warning(
-            "Please select at least one channel."
+            "Select at least one channel first."
         )
 
-        st.stop()
+    else:
 
-    campaign = Campaign(
-        product=product,
-        audience=audience,
-        goal=goal,
-        key_message=key_message,
-        channels=channels
-    )
+        workflow = BrandForgeWorkflow(brand)
 
-    # ==========================================
-    # WORKFLOW
-    # ==========================================
+        forbidden = brand["dont_say"][0]
 
-    with st.status(
-        "🚀 BrandForge is building your campaign...",
-        expanded=True
-    ) as status:
+        test_campaign = Campaign(
+            product=product,
+            audience=audience,
+            goal=goal,
+            key_message=key_message,
+            channels=channels
+        )
+
+        test_copy = {
+            "instagram": {
+                "caption": (
+                    f"This product is {forbidden} "
+                    "and perfect for everyone."
+                ),
+                "cta": "Learn more",
+                "hashtags": []
+            },
+
+            "linkedin": {
+                "post": (
+                    f"Our product is {forbidden} "
+                    "and designed for modern users."
+                ),
+                "cta": "Discover more",
+                "hashtags": []
+            },
+
+            "email": {
+                "subject": f"A {forbidden} solution",
+                "preview": "Discover something new.",
+                "body": (
+                    f"Our product offers a {forbidden} "
+                    "experience for everyday users."
+                ),
+                "cta": "Learn more"
+            }
+        }
+
+        st.subheader("Guardrail Test")
+
+        st.info(
+            f"Testing forbidden term: {forbidden}"
+        )
+
+        initial = workflow.qa_engine.check_campaign(
+            test_copy,
+            test_campaign,
+            []
+        )
 
         st.write(
-            "🧠 Strategy Agent: creating strategy..."
+            "Initial validation: "
+            f"**{initial.get('overall_status', 'UNKNOWN')}**"
+        )
+
+        if initial.get("overall_status") == "FAIL":
+
+            for name, check in initial.get(
+                "checks",
+                {}
+            ).items():
+
+                if (
+                    isinstance(check, dict)
+                    and check.get("status") == "FAIL"
+                ):
+
+                    st.write(
+                        f"**{name.title()}**"
+                    )
+
+                    show_issues(check)
+
+            revised = workflow.copy_agent.revise_copy(
+                test_campaign,
+                brand,
+                {},
+                test_copy,
+                initial
+            )
+
+            final = workflow.qa_engine.check_campaign(
+                revised,
+                test_campaign,
+                []
+            )
+
+            st.write(
+                "Final validation: "
+                f"**{final.get('overall_status', 'UNKNOWN')}**"
+            )
+
+            if final.get("overall_status") == "PASS":
+
+                st.success(
+                    "Guardrail detected the violation "
+                    "and the Copywriting Agent fixed it."
+                )
+
+            else:
+
+                st.warning(
+                    "Campaign still requires human review."
+                )
+
+
+# ============================================================
+# GENERATE CAMPAIGN
+# ============================================================
+
+if generate_campaign:
+
+    errors = []
+
+    if not product.strip():
+        errors.append(
+            "Product / Service is required."
+        )
+
+    if not audience.strip():
+        errors.append(
+            "Target Audience is required."
+        )
+
+    if not goal.strip():
+        errors.append(
+            "Campaign Goal is required."
+        )
+
+    if not key_message.strip():
+        errors.append(
+            "Key Message is required."
+        )
+
+    if not channels:
+        errors.append(
+            "Select at least one channel."
+        )
+
+    if errors:
+
+        for error in errors:
+            st.error(error)
+
+    else:
+
+        campaign = Campaign(
+            product,
+            audience,
+            goal,
+            key_message,
+            channels
         )
 
         workflow = BrandForgeWorkflow(brand)
 
-        result = workflow.run(campaign)
-
-        strategy = result["strategy"]
-        copy = result["copy"]
-        images = result["images"]
-        qa_report = result["qa_report"]
-
-        st.write(
-            "✍️ Copywriting Agent: creating content..."
-        )
-
-        st.write(
-            "🎨 Image Agent: creating visual variants..."
-        )
-
-        st.write(
-            "🛡️ Brand Guardrail: validating campaign..."
-        )
-
-        status.update(
-            label="✅ Campaign generation complete!",
-            state="complete"
-        )
-
-    # ==========================================
-    # EXPORT
-    # ==========================================
-
-    with st.spinner(
-        "📦 Packaging campaign..."
-    ):
-
-        exporter = CampaignExporter()
-
-        zip_file = exporter.export(
-            campaign,
-            strategy,
-            copy,
-            images,
-            qa_report
-        )
-
-    st.divider()
-
-    # ==========================================
-    # CAMPAIGN RESULTS
-    # ==========================================
-
-    st.header("📊 Campaign Results")
-
-    # ==========================================
-    # STRATEGY
-    # ==========================================
-
-    with st.expander(
-        "🧠 Marketing Strategy",
-        expanded=True
-    ):
-
-        st.write(
-            f"**Campaign Theme:** "
-            f"{strategy['campaign_theme']}"
-        )
-
-        st.write("**Key Messages:**")
-
-        for message in strategy["key_messages"]:
+        with st.status(
+            "Building your campaign...",
+            expanded=True
+        ) as status:
 
             st.write(
-                f"• {message}"
+                "🧠 Creating marketing strategy..."
             )
 
-        st.write("**Channel Strategy:**")
+            result = workflow.run(campaign)
 
-        st.json(
-            strategy["channel_strategy"]
-        )
+            status.update(
+                label="Campaign generation complete",
+                state="complete",
+                expanded=False
+            )
 
-    # ==========================================
-    # GENERATED CONTENT
-    # ==========================================
+        st.session_state[
+            "campaign_result"
+        ] = result
 
-    st.header("✍️ Generated Content")
 
-    tab1, tab2, tab3 = st.tabs(
-        [
-            "📸 Instagram",
-            "💼 LinkedIn",
-            "📧 Email"
-        ]
+# ============================================================
+# RESULTS
+# ============================================================
+
+if "campaign_result" in st.session_state:
+
+    result = st.session_state[
+        "campaign_result"
+    ]
+
+    campaign = result["campaign"]
+    strategy = result["strategy"]
+    copy = result["copy"]
+    images = result.get("images", [])
+    qa_report = result["qa_report"]
+
+    theme = strategy.get(
+        "campaign_theme",
+        "Campaign Strategy"
     )
 
-    # ----------------------------------------
-    # Instagram
-    # ----------------------------------------
-
-    with tab1:
-
-        st.subheader("Instagram")
-
-        st.write(
-            copy["instagram"]["caption"]
-        )
-
-        st.write("**CTA**")
-
-        st.info(
-            copy["instagram"]["cta"]
-        )
-
-        st.write("**Hashtags**")
-
-        st.write(
-            " ".join(
-                copy["instagram"]["hashtags"]
-            )
-        )
-
-    # ----------------------------------------
-    # LinkedIn
-    # ----------------------------------------
-
-    with tab2:
-
-        st.subheader("LinkedIn")
-
-        st.write(
-            copy["linkedin"]["post"]
-        )
-
-        st.write("**CTA**")
-
-        st.info(
-            copy["linkedin"]["cta"]
-        )
-
-        st.write("**Hashtags**")
-
-        st.write(
-            " ".join(
-                copy["linkedin"]["hashtags"]
-            )
-        )
-
-    # ----------------------------------------
-    # Email
-    # ----------------------------------------
-
-    with tab3:
-
-        st.subheader("Email")
-
-        st.write("**Subject**")
-
-        st.write(
-            copy["email"]["subject"]
-        )
-
-        st.write("**Preview Text**")
-
-        st.write(
-            copy["email"]["preview"]
-        )
-
-        st.write("**Email Body**")
-
-        st.write(
-            copy["email"]["body"]
-        )
-
-        st.write("**CTA**")
-
-        st.info(
-            copy["email"]["cta"]
-        )
-
-    # ==========================================
-    # VISUAL VARIANTS
-    # ==========================================
-
-    st.header("🎨 Visual Variants")
-
-    image_columns = st.columns(
-        len(images)
+    qa_status = qa_report.get(
+        "overall_status",
+        "UNKNOWN"
     )
 
-    for i, image in enumerate(images):
+    # --------------------------------
+    # Hero
+    # --------------------------------
 
-        with image_columns[i]:
+    st.markdown(
+        "<div class='hero'>",
+        unsafe_allow_html=True
+    )
 
-            st.subheader(
-                image["style"].title()
-            )
+    st.markdown(
+        "<div class='hero-small'>Campaign Results</div>",
+        unsafe_allow_html=True
+    )
 
-            file_path = image["file"]
+    st.markdown(
+        f"<div class='hero-title'>{campaign.product}</div>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        f"<div class='hero-sub'>{theme}</div>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    # --------------------------------
+    # Metrics
+    # --------------------------------
+
+    m1, m2, m3, m4 = st.columns(4)
+
+    with m1:
+        st.metric("Strategy", "✓")
+
+    with m2:
+        st.metric(
+            "Channels",
+            len(campaign.channels)
+        )
+
+    with m3:
+        st.metric(
+            "Visual Variants",
+            len(images)
+        )
+
+    with m4:
+        st.metric(
+            "Brand QA",
+            qa_status
+        )
+
+    # --------------------------------
+    # Strategy
+    # --------------------------------
+
+    st.subheader("🎯 Marketing Strategy")
+
+    st.caption(
+        "Generated by the Strategy Agent."
+    )
+
+    st.markdown("**Campaign Theme**")
+
+    st.info(theme)
+
+    messages = strategy.get(
+        "key_messages",
+        []
+    )
+
+    if messages:
+
+        st.markdown("**Key Messages**")
+
+        for i, message in enumerate(
+            messages,
+            1
+        ):
 
             st.write(
-                f"Generation: `{image['status']}`"
+                f"**{i:02d}**  {message}"
             )
 
-            if os.path.exists(file_path):
+    channel_strategy = strategy.get(
+        "channel_strategy",
+        {}
+    )
 
-                if file_path.lower().endswith(".svg"):
+    if channel_strategy:
 
-                    with open(
-                        file_path,
-                        "r",
-                        encoding="utf-8"
-                    ) as file:
+        st.markdown(
+            "**Channel Strategy**"
+        )
 
-                        svg_data = file.read()
+        cols = st.columns(
+            min(3, len(channel_strategy))
+        )
 
-                    svg_base64 = base64.b64encode(
-                        svg_data.encode("utf-8")
-                    ).decode("utf-8")
+        for i, (channel, data) in enumerate(
+            channel_strategy.items()
+        ):
+
+            with cols[i % len(cols)]:
+
+                with st.container(
+                    border=True
+                ):
 
                     st.markdown(
-                        f"""
-                        <div style="
-                            width:100%;
-                            background:white;
-                            border-radius:12px;
-                            padding:10px;
-                            border:1px solid #ddd;
-                        ">
-                            <img
-                                src="data:image/svg+xml;base64,{svg_base64}"
-                                style="
-                                    width:100%;
-                                    height:auto;
-                                "
-                            >
-                        </div>
-                        """,
-                        unsafe_allow_html=True
+                        f"### {channel.title()}"
+                    )
+
+                    st.caption("Content")
+
+                    for item in data.get(
+                        "content_types",
+                        []
+                    ):
+
+                        st.write(
+                            f"• {item}"
+                        )
+
+                    st.caption("Purpose")
+
+                    st.write(
+                        data.get(
+                            "purpose",
+                            ""
+                        )
+                    )
+
+                    st.caption("Cadence")
+
+                    st.write(
+                        data.get(
+                            "cadence",
+                            ""
+                        )
+                    )
+
+    # --------------------------------
+    # Copy
+    # --------------------------------
+
+    st.subheader(
+        "✍️ Campaign Content"
+    )
+
+    st.caption(
+        "Channel-ready content generated by "
+        "the Copywriting Agent."
+    )
+
+    available = [
+        c for c in campaign.channels
+        if c in copy
+    ]
+
+    if available:
+
+        tabs = st.tabs(
+            [
+                c.title()
+                for c in available
+            ]
+        )
+
+        for tab, channel in zip(
+            tabs,
+            available
+        ):
+
+            with tab:
+
+                data = copy[channel]
+
+                if channel == "instagram":
+
+                    st.markdown(
+                        "**Caption**"
+                    )
+
+                    st.write(
+                        data.get(
+                            "caption",
+                            ""
+                        )
+                    )
+
+                    st.markdown(
+                        "**Call to Action**"
+                    )
+
+                    st.info(
+                        data.get(
+                            "cta",
+                            ""
+                        )
+                    )
+
+                    st.markdown(
+                        "**Hashtags**"
+                    )
+
+                    st.write(
+                        " ".join(
+                            data.get(
+                                "hashtags",
+                                []
+                            )
+                        )
+                    )
+
+                    st.caption(
+                        f"Characters: "
+                        f"{len(data.get('caption', ''))}"
+                    )
+
+                elif channel == "linkedin":
+
+                    st.markdown(
+                        "**Post**"
+                    )
+
+                    st.write(
+                        data.get(
+                            "post",
+                            ""
+                        )
+                    )
+
+                    st.markdown(
+                        "**Call to Action**"
+                    )
+
+                    st.info(
+                        data.get(
+                            "cta",
+                            ""
+                        )
+                    )
+
+                    st.markdown(
+                        "**Hashtags**"
+                    )
+
+                    st.write(
+                        " ".join(
+                            data.get(
+                                "hashtags",
+                                []
+                            )
+                        )
+                    )
+
+                    st.caption(
+                        f"Characters: "
+                        f"{len(data.get('post', ''))}"
                     )
 
                 else:
 
-                    st.image(
-                        file_path,
-                        use_container_width=True
+                    st.markdown(
+                        "**Subject**"
                     )
 
-            st.caption(
-                image["message"]
-            )
+                    st.write(
+                        data.get(
+                            "subject",
+                            ""
+                        )
+                    )
 
-    # ==========================================
-    # BRAND QA
-    # ==========================================
+                    st.markdown(
+                        "**Preview**"
+                    )
 
-    st.header("🛡️ Brand QA Report")
+                    st.write(
+                        data.get(
+                            "preview",
+                            ""
+                        )
+                    )
 
-    final_status = qa_report.get(
-        "final_status",
-        qa_report["overall_status"]
+                    st.markdown(
+                        "**Body**"
+                    )
+
+                    st.write(
+                        data.get(
+                            "body",
+                            ""
+                        )
+                    )
+
+                    st.markdown(
+                        "**Call to Action**"
+                    )
+
+                    st.info(
+                        data.get(
+                            "cta",
+                            ""
+                        )
+                    )
+
+    # --------------------------------
+    # Visuals
+    # --------------------------------
+
+    st.subheader(
+        "🎨 Visual Variants"
     )
 
-    revision_attempts = qa_report.get(
-        "revision_attempts",
-        0
+    st.caption(
+        "Two visual directions generated "
+        "for the campaign."
     )
 
-    if final_status == "PASS":
+    if images:
+
+        cols = st.columns(
+            min(2, len(images))
+        )
+
+        for i, image in enumerate(images):
+
+            with cols[i % len(cols)]:
+
+                style = image.get(
+                    "style",
+                    "Visual"
+                )
+
+                raw_path = image.get(
+                    "file"
+                )
+
+                path = resolve_image_path(
+                    raw_path
+                )
+
+                st.markdown(
+                    f"### {style.title()}"
+                )
+
+                if path:
+
+                    if path.suffix.lower() == ".svg":
+
+                        if show_svg(path):
+
+                            st.success(
+                                "Visual generated"
+                            )
+
+                        else:
+
+                            st.error(
+                                "Could not render SVG."
+                            )
+
+                    else:
+
+                        st.image(
+                            str(path),
+                            use_container_width=True
+                        )
+
+                        st.success(
+                            "Visual generated"
+                        )
+
+                else:
+
+                    st.error(
+                        f"Visual file not found: "
+                        f"{raw_path}"
+                    )
+
+    else:
+
+        st.warning(
+            "No visual variants were returned "
+            "by the Image Generation Agent."
+        )
+
+    # --------------------------------
+    # QA
+    # --------------------------------
+
+    st.subheader(
+        "🛡 Campaign War Room"
+    )
+
+    st.caption(
+        "Final quality-control checks before "
+        "campaign delivery."
+    )
+
+    if qa_status == "PASS":
 
         st.success(
-            "✅ Campaign passed brand consistency checks."
+            "✓ CAMPAIGN PASSED — "
+            "All configured checks passed."
         )
 
     else:
 
         st.error(
-            "⚠️ Campaign requires human review."
+            "⚠ REVIEW REQUIRED — "
+            "One or more checks need attention."
         )
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.metric(
-            "Revision Attempts",
-            revision_attempts
-        )
-
-    with col2:
-
-        st.metric(
-            "Final Status",
-            final_status
-        )
-
-    checks = qa_report["checks"]
-
-    # ==========================================
-    # CHANNEL QA
-    # ==========================================
-
-    st.subheader("Channel Checks")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-
-        if checks["instagram"]["status"] == "PASS":
-
-            st.success(
-                "Instagram\n\n✅ PASS"
-            )
-
-        else:
-
-            st.error(
-                "Instagram\n\n❌ FAIL"
-            )
-
-    with col2:
-
-        if checks["linkedin"]["status"] == "PASS":
-
-            st.success(
-                "LinkedIn\n\n✅ PASS"
-            )
-
-        else:
-
-            st.error(
-                "LinkedIn\n\n❌ FAIL"
-            )
-
-    with col3:
-
-        if checks["email"]["status"] == "PASS":
-
-            st.success(
-                "Email\n\n✅ PASS"
-            )
-
-        else:
-
-            st.error(
-                "Email\n\n❌ FAIL"
-            )
-
-    with col4:
-
-        if checks["consistency"]["status"] == "PASS":
-
-            st.success(
-                "Consistency\n\n✅ PASS"
-            )
-
-        else:
-
-            st.error(
-                "Consistency\n\n❌ FAIL"
-            )
-
-    # ==========================================
-    # IMAGE QA
-    # ==========================================
-
-    st.subheader("Image Checks")
-
-    image_checks = checks.get(
-        "images",
-        []
+    checks = qa_report.get(
+        "checks",
+        {}
     )
 
-    if image_checks:
+    q1, q2, q3 = st.columns(3)
 
-        image_cols = st.columns(
-            len(image_checks)
+    with q1:
+
+        st.markdown(
+            "### 🔤 Text Guard"
         )
 
-        for i, image_check in enumerate(
-            image_checks
-        ):
+        for channel in campaign.channels:
 
-            with image_cols[i]:
+            if channel in checks:
 
-                style = image_check.get(
-                    "style",
-                    f"Image {i + 1}"
+                status = checks[
+                    channel
+                ].get(
+                    "status",
+                    "UNKNOWN"
                 )
 
-                if image_check["status"] == "PASS":
+                if status == "PASS":
 
                     st.success(
-                        f"{style.title()}\n\n✅ PASS"
+                        f"{channel.title()}: PASS"
                     )
 
                 else:
 
                     st.error(
-                        f"{style.title()}\n\n❌ FAIL"
+                        f"{channel.title()}: FAIL"
                     )
 
-                for issue in image_check.get(
-                    "issues",
-                    []
+                    show_issues(
+                        checks[channel]
+                    )
+
+    with q2:
+
+        st.markdown(
+            "### 🔍 Consistency"
+        )
+
+        consistency = checks.get(
+            "consistency",
+            {}
+        )
+
+        if consistency.get(
+            "status"
+        ) == "PASS":
+
+            st.success(
+                "Cross-Channel Claims: PASS"
+            )
+
+        else:
+
+            st.error(
+                "Cross-Channel Claims: FAIL"
+            )
+
+            show_issues(
+                consistency
+            )
+
+    with q3:
+
+        st.markdown(
+            "### 🎨 Image Guard"
+        )
+
+        image_checks = checks.get(
+            "images",
+            []
+        )
+
+        if image_checks:
+
+            for check in image_checks:
+
+                if check.get(
+                    "status"
+                ) == "PASS":
+
+                    st.success(
+                        f"{check.get('style', 'Visual').title()}: PASS"
+                    )
+
+                else:
+
+                    st.error(
+                        f"{check.get('style', 'Visual').title()}: FAIL"
+                    )
+
+                    show_issues(check)
+
+        else:
+
+            st.warning(
+                "No image checks available."
+            )
+
+    st.info(
+        f"Revision attempts: "
+        f"{qa_report.get('revision_attempts', 0)}"
+        f"  •  Final status: "
+        f"{qa_report.get('final_status', qa_status)}"
+    )
+
+    # --------------------------------
+    # Calendar
+    # --------------------------------
+
+    st.subheader(
+        "📅 Campaign Calendar"
+    )
+
+    calendar = result.get(
+        "calendar"
+    )
+
+    if calendar:
+
+        cols = st.columns(
+            min(3, len(calendar))
+        )
+
+        for i, item in enumerate(
+            calendar
+        ):
+
+            with cols[i % len(cols)]:
+
+                with st.container(
+                    border=True
                 ):
 
                     st.caption(
-                        f"⚠️ {issue}"
+                        item.get(
+                            "date",
+                            ""
+                        )
+                    )
+
+                    st.write(
+                        item.get(
+                            "channel",
+                            ""
+                        ).title()
+                    )
+
+                    st.caption(
+                        item.get(
+                            "status",
+                            "Scheduled"
+                        )
                     )
 
     else:
 
         st.info(
-            "No image QA results available."
+            "Campaign calendar is included "
+            "in the exported package."
         )
 
-    # ==========================================
-    # DETAILED QA
-    # ==========================================
+    # --------------------------------
+    # Delivery
+    # --------------------------------
 
-    with st.expander(
-        "🔍 View Detailed QA Report"
-    ):
-
-        st.json(
-            qa_report
-        )
-
-    # ==========================================
-    # CAMPAIGN CALENDAR
-    # ==========================================
-
-    st.header("📅 Campaign Calendar")
-
-    calendar_generator = CampaignCalendar()
-
-    calendar = calendar_generator.create_calendar(
-        campaign.channels
+    st.subheader(
+        "📦 Final Delivery"
     )
 
-    for item in calendar:
+    zip_path = (
+        BASE_DIR
+        / "outputs"
+        / "BrandForge_Campaign.zip"
+    )
 
-        col1, col2, col3 = st.columns(3)
+    if zip_path.exists():
 
-        with col1:
+        with open(
+            zip_path,
+            "rb"
+        ) as f:
 
-            st.write("📅 **Date**")
-
-            st.write(
-                item["date"]
+            st.download_button(
+                "⬇ Download Campaign Package",
+                data=f,
+                file_name="BrandForge_Campaign.zip",
+                mime="application/zip",
+                use_container_width=True
             )
-
-        with col2:
-
-            st.write("📢 **Channel**")
-
-            st.write(
-                item["channel"]
-            )
-
-        with col3:
-
-            st.write("📌 **Status**")
-
-            st.write(
-                item["status"]
-            )
-
-        st.divider()
-
-    # ==========================================
-    # FINAL PACKAGE
-    # ==========================================
-
-    st.header("📦 Final Campaign Package")
-
-    if final_status == "PASS":
-
-        st.write(
-            "Your complete campaign package "
-            "is ready for delivery."
-        )
 
     else:
 
         st.warning(
-            "Campaign has unresolved issues. "
-            "Review the QA report before delivery."
+            "Campaign ZIP file was not found."
         )
 
-    if os.path.exists(zip_file):
+    # --------------------------------
+    # Developer Details
+    # --------------------------------
 
-        with open(
-            zip_file,
-            "rb"
-        ) as file:
+    with st.expander(
+        "Developer Details"
+    ):
 
-            zip_data = file.read()
-
-        st.download_button(
-            label="⬇️ Download BrandForge Campaign",
-            data=zip_data,
-            file_name="BrandForge_Campaign.zip",
-            mime="application/zip",
-            use_container_width=True
+        st.write(
+            "Strategy JSON"
         )
 
-        if final_status == "PASS":
+        st.json(strategy)
 
-            st.success(
-                "Campaign package ready for delivery!"
-            )
-
-        else:
-
-            st.warning(
-                "Package generated, but QA requires review."
-            )
-
-    else:
-
-        st.error(
-            "Campaign ZIP could not be created."
+        st.write(
+            "Campaign Copy JSON"
         )
+
+        st.json(copy)
+
+        st.write(
+            "QA Report JSON"
+        )
+
+        st.json(qa_report)

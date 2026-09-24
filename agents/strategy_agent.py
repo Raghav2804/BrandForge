@@ -1,4 +1,5 @@
 import json
+
 from services.llm_service import LLMService
 
 
@@ -23,13 +24,22 @@ Key Message: {campaign.key_message}
 Channels: {campaign.channels}
 
 BRAND:
-Brand Name: {brand["brand_name"]}
-Brand Voice: {brand["brand_voice"]}
-Visual Style: {brand["visual_style"]}
-Do Say: {brand["do_say"]}
-Don't Say: {brand["dont_say"]}
+Brand Name: {brand.get("brand_name", "")}
+Brand Voice: {brand.get("brand_voice", {})}
+Visual Style: {brand.get("visual_style", [])}
+Do Say: {brand.get("do_say", [])}
+Don't Say: {brand.get("dont_say", [])}
 
-Return ONLY valid JSON.
+IMPORTANT:
+- Make the strategy specific to the actual product.
+- Do not assume the product type.
+- Adapt the strategy to the selected channels only.
+- Keep messaging consistent across channels.
+- Do not invent unsupported product claims.
+- Respect the brand voice and visual style.
+- Use channel-specific content formats.
+- Return ONLY valid JSON.
+- Do not add markdown or explanations.
 
 Use exactly this structure:
 
